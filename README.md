@@ -1,0 +1,2 @@
+# Artnay
+The AI project
