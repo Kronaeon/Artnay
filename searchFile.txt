@@ -1,0 +1,12 @@
+topic:
+southpark cartoon
+keywordInclude:
+season 7
+episode 12
+cartman
+keywordExclude:
+nytimes
+blooms
+domains:
+python.org
+southparkwiki
