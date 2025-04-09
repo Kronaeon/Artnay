@@ -4,13 +4,16 @@
 # Last Update: 04/08/2025
 # VD8931
 # ProgramName: api Search
-# Version: 1.2
+# Version: 1.3
 # ------======================================================
 
 import time
 import logging
 import requests
+import os
 from urllib.parse import urlparse
+from bs4 import BeautifulSoup
+import hashlib
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -127,18 +130,8 @@ class GoogleCustomSearch:
                 
         return results[:num_results]
 
-    def filter_results(self, results, keywords_include=None, keywords_exclude=None, domains=None):
-        """Filter search results based on various criteria.
-
-        Args:
-            results (list): List of search result dictionaries.
-            keywords_include (list): Keywords that must be present in title or snippet.
-            keywords_exclude (list): Keywords that must NOT be present in title or snippet.
-            domains (list): List of domains to filter results by.
-
-        Returns:
-            list: Filtered list of search result dictionaries.
-        """
+    # Deprecated, not currently working.
+    def filter_results(self, results, keywords_include=None, keywords_exclude=None, domains=None, use_domains=False):
         keywords_include = keywords_include or []
         keywords_exclude = keywords_exclude or []
         domains = domains or []
@@ -146,18 +139,17 @@ class GoogleCustomSearch:
         filtered = []
         
         for result in results:
-            # Combine title and snippet for keyword matching
             text = (result['title'] + ' ' + result['snippet']).lower()
             
-            # Check if all required keywords are present
-            include_match = all(k.lower() in text for k in keywords_include)
+            # Check if keywords_include is empty OR all keywords are present
+            include_match = not keywords_include or all(k.lower() in text for k in keywords_include)
             
-            # Check if any excluded keywords are present
+            # Check excluded keywords
             exclude_match = any(k.lower() in text for k in keywords_exclude)
             
-            # Check domain restriction
+            # Domain logic remains unchanged
             domain_match = True
-            if domains:
+            if use_domains and domains:
                 domain_match = False
                 result_domain = urlparse(result['url']).netloc
                 for d in domains:
@@ -165,22 +157,181 @@ class GoogleCustomSearch:
                         domain_match = True
                         break
             
-            # Apply all filters
             if include_match and not exclude_match and domain_match:
                 filtered.append(result)
-                
+            elif include_match and not exclude_match:
+                print("Include and Exclude matched")
+                filtered.append(result)
+            elif include_match:
+                print("Include matched")
+                filtered.append(result)
+            elif exclude_match:
+                print("Exclude matched")
+                filtered.append(result)
+            else:
+                print("No match")
+                    
         return filtered
 
-class searchArea:
-    def __init__(self, filename = "searchFile.txt"):
+
+    def filterSearchQuery(self, topic, keywords_include=None, keywords_exclude=None, domains=None):
+        
+        for keyword in keywords_include:
+            topic = topic + " " + '"' + keyword + '"'
+        
+        for keyword in keywords_exclude:
+            topic = topic + " " + '-' + keyword
+        
+        return topic
+        
+
+    def fetch_page_content(self, url, timeout=10):
+        """Fetch the content of a webpage.
+        
+        Args:
+            url (str): The URL to fetch.
+            timeout (int): Request timeout in seconds.
+            
+        Returns:
+            str: The HTML content of the page, or None if the request failed.
+        """
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+        
+        try:
+            response = requests.get(url, headers=headers, timeout=timeout)
+            response.raise_for_status()
+            return response.text
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Error fetching page content from {url}: {e}")
+            return None
+    
+    def extract_text_from_html(self, html):
+        """Extract main text content from HTML.
+        
+        Args:
+            html (str): HTML content to parse.
+            
+        Returns:
+            str: Extracted text content.
+        """
+        if not html:
+            return ""
+        
+        try:
+            soup = BeautifulSoup(html, 'html.parser')
+            
+            # Remove script and style elements
+            for script in soup(["script", "style", "nav", "footer", "header"]):
+                script.extract()
+                
+            # Get text
+            text = soup.get_text(separator='\n')
+            
+            # Break into lines and remove leading and trailing space on each
+            lines = (line.strip() for line in text.splitlines())
+            
+            # Break multi-headlines into a line each
+            chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
+            
+            # Remove blank lines
+            text = '\n'.join(chunk for chunk in chunks if chunk)
+            
+            return text
+        except Exception as e:
+            logging.error(f"Error extracting text from HTML: {e}")
+            return ""
+    
+    def save_content_to_file(self, result, content, output_dir="search_results"):
+        """Save content to a text file.
+        
+        Args:
+            result (dict): Search result dictionary.
+            content (str): Text content to save.
+            output_dir (str): Directory to save files in.
+            
+        Returns:
+            str: Path to the saved file, or None if save failed.
+        """
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+            
+        # Create a filename based on the title or URL
+        if result.get('title'):
+            # Use title for filename but ensure it's valid
+            base_filename = ''.join(c if c.isalnum() or c in [' ', '_', '-'] else '_' for c in result['title'])
+            base_filename = base_filename[:50]  # Limit length
+        else:
+            # Use a hash of the URL if no title
+            base_filename = hashlib.md5(result['url'].encode()).hexdigest()
+            
+        # Add rank to ensure uniqueness
+        filename = f"{result['rank']:03d}_{base_filename}.txt"
+        filepath = os.path.join(output_dir, filename)
+        
+        try:
+            with open(filepath, 'w', encoding='utf-8') as f:
+                # Write URL and title as metadata at the top
+                f.write(f"URL: {result['url']}\n")
+                f.write(f"Title: {result['title']}\n")
+                f.write(f"Rank: {result['rank']}\n")
+                f.write("-" * 80 + "\n\n")
+                
+                # Write the actual content
+                f.write(content)
+                
+            logging.info(f"Saved content to {filepath}")
+            return filepath
+        except Exception as e:
+            logging.error(f"Error saving content to file: {e}")
+            return None
+    
+    def download_and_save_results(self, results, output_dir="search_results"):
+        """Download content from search results and save to files.
+        
+        Args:
+            results (list): List of search result dictionaries.
+            output_dir (str): Directory to save files in.
+            
+        Returns:
+            list: List of successful save paths.
+        """
+        saved_files = []
+        
+        for result in results:
+            logging.info(f"Processing: [{result['rank']}] {result['title']} - {result['url']}")
+            
+            # Fetch HTML content
+            html = self.fetch_page_content(result['url'])
+            if not html:
+                logging.warning(f"Could not fetch content from {result['url']}")
+                continue
+                
+            # Extract text from HTML
+            text_content = self.extract_text_from_html(html)
+            if not text_content:
+                logging.warning(f"Could not extract text from {result['url']}")
+                continue
+                
+            # Save content to file
+            filepath = self.save_content_to_file(result, text_content, output_dir)
+            if filepath:
+                saved_files.append(filepath)
+                
+            # Simple rate limiting to be nice to servers
+            time.sleep(1)
+            
+        return saved_files
+
+class SearchArea:
+    def __init__(self, filename="searchFile.txt"):
         self.topic = ""
         self.keyword_include = []
         self.keyword_exclude = []
         self.domains = []
         
-        self.data = self.readFile(filename)
-        
-        
+        self.readFile(filename)
     
     def readFile(self, filename):
         current_section = None
@@ -210,10 +361,9 @@ class searchArea:
                         self.domains.append(line)
         
         except FileNotFoundError:
-            print(f"Error: File '{filename}' not found.")
+            logging.error(f"Error: File '{filename}' not found.")
         except Exception as e:
-            print(f"Error parsing file: {e}")
-
+            logging.error(f"Error parsing file: {e}")
 
 
 # Example usage
@@ -223,40 +373,52 @@ if __name__ == "__main__":
     CX = "5577aa179034e4ac0"
     
     # Create Search Area
-    searchArea = searchArea()
+    search_area = SearchArea()
     num_results = 10
+    output_dir = "search_content"
     
     # Create search client
     search_client = GoogleCustomSearch(API_KEY, CX)
     
-    
-    
     # Basic search
-    print("Basic Search:")
+    print("Performing search for:", search_area.topic)
+    results = search_client.search(search_area.topic, num_results=num_results)
     
-    results = search_client.search(searchArea.topic, num_results)
-    
+    print(f"Found {len(results)} results:")
     for result in results:
         print(f"[{result['rank']}] {result['title']}")
         print(f"URL: {result['url']}")
         print(f"Snippet: {result['snippet'][:100]}...")
         print()
     
-    # Search with filters
-    print("\nFiltered Search:")
-    all_results = search_client.search(searchArea.topic, num_results=20)
-    filtered_results = search_client.filter_results(
-        all_results,
-        searchArea.keyword_include,
-        searchArea.keyword_exclude,
-        searchArea.domains
-    )
     
-    print(f"Found {len(filtered_results)} results after filtering:")
-    for result in filtered_results:
-        print(f"[{result['rank']}] {result['title']}")
-        print(f"URL: {result['url']}")
-        print(f"Snippet: {result['snippet'][:100]}...")
-        print()
+    print("\n\nPerforming filtered search...\n\n")
+    
+    # Filtered search 2.0
+    query = search_client.filterSearchQuery(search_area.topic, search_area.keyword_include, search_area.keyword_exclude, search_area.domains)
+    results = search_client.search(query, num_results=num_results)
+    
+    
+    # Apply filters if specified
+    # if search_area.keyword_include or search_area.keyword_exclude or search_area.domains:
+    #     print("\nApplying filters...")
+    #     results = search_client.filter_results(
+    #         results,
+    #         search_area.keyword_include,
+    #         search_area.keyword_exclude,
+    #         search_area.domains
+    #     )
         
+    #     print(f"After filtering: {len(results)} results")
+    
+    # Download and save content
+    if results:
+        print(f"\nDownloading and saving content to '{output_dir}' directory...")
+        saved_files = search_client.download_and_save_results(results, output_dir)
+        
+        print(f"\nSuccessfully saved {len(saved_files)} files:")
+        for file in saved_files:
+            print(f"- {file}")
+    else:
+        print("No results to download.")
         
