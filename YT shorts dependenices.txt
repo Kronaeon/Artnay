@@ -1,0 +1,10 @@
+Package: 
+conda install -c conda-forge requests python-dotenv google-api-python-client pandas isodate
+
+API KEY: 
+
+File name: youtubekey.env
+
+API key should be mention as:
+youtubekey=xxxxxxxx
+
