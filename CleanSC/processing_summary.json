@@ -1,0 +1,11 @@
+{
+  "topic": "southpark cartoon, cartman",
+  "processed_files": [
+    {
+      "original": "search_content/001_Eric Cartman - Wikipedia.txt",
+      "cleaned": "CleanSC/clean_001_Eric Cartman - Wikipedia.md"
+    }
+  ],
+  "total_files": 1,
+  "successful_files": 1
+}
