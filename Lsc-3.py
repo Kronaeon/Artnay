@@ -2,29 +2,21 @@ import os
 import re
 import json
 import logging
+import torch
 from pathlib import Path
 import requests
 from datetime import datetime
-# from llama_cpp import Llama  # Import Llama from llama_cpp_python
 
-# Set environment variables
-os.environ["LLAMA_CPP_LIB_PATH"] = "/home/horus/Workspace/llama.cpp/build/bin"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
 
-# Print header with timestamp for tracking runs
-print(f"\n{'='*60}")
-print(f"MODEL INFERENCE TEST - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-print(f"{'='*60}")
-
-# Import library
-print("Loading llama_cpp library...")
-from llama_cpp import Llama
-
+from vllm import LLM, SamplingParams
+from transformers import AutoTokenizer
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class ContentCleaner:
-    """Clean scraped web content using either local LLM (Llama.cpp) or API.
+    """Clean scraped web content using vLLM for efficient CUDA-accelerated inference.
     
     This class processes raw scraped text from search results and:
     1. Removes boilerplate content, ads, navigation elements
@@ -34,9 +26,19 @@ class ContentCleaner:
     """
     
     def __init__(self, input_dir="search_content", output_dir="CleanSC", 
-             use_local_model=True, model_path="meta-llama/Llama-3-8B-Instruct",
-             api_endpoint=None, api_key=None, n_gpu_layers=35):  # Note: removed n_ctx, added n_gpu_layers
-        """Initialize the ContentCleaner."""
+                 use_local_model=True, model_path="meta-llama/Llama-3-8B-Instruct",
+                 api_endpoint=None, api_key=None, tensor_parallel_size=1):
+        """Initialize the ContentCleaner.
+        
+        Args:
+            input_dir (str): Directory containing scraped content files
+            output_dir (str): Directory to save cleaned content
+            use_local_model (bool): Whether to use a local LLM (True) or API (False)
+            model_path (str): Model name or path (HuggingFace format)
+            api_endpoint (str): API endpoint for remote LLM service
+            api_key (str): API key for remote LLM service
+            tensor_parallel_size (int): Number of GPUs to use for tensor parallelism
+        """
         self.input_dir = Path(input_dir)
         self.output_dir = Path(output_dir)
         self.use_local_model = use_local_model
@@ -47,36 +49,64 @@ class ContentCleaner:
         if not self.output_dir.exists():
             self.output_dir.mkdir(parents=True)
             
-        # Initialize llama.cpp if using local model
+        # Initialize vLLM if using local model
         if use_local_model:
-            logging.info(f"Initializing llama-cpp-python with model: {model_path}")
+            logging.info(f"Initializing vLLM with model: {model_path}")
             try:
-                # Check GPU availability
-                import torch
-                if torch.cuda.is_available():
-                    logging.info(f"CUDA is available. GPU count: {torch.cuda.device_count()}")
-                    for i in range(torch.cuda.device_count()):
-                        props = torch.cuda.get_device_properties(i)
-                        logging.info(f"GPU {i}: {props.name}, Memory: {props.total_memory / 1e9:.1f} GB")
-                else:
-                    logging.warning("CUDA is NOT available!")
+                # Check GPU memory
+                gpu_memory = torch.cuda.get_device_properties(0).total_memory / 1e9
+                logging.info(f"GPU Memory: {gpu_memory:.1f} GB")
                 
-                # Initialize Llama.cpp with GPU support
-                self.llm = Llama(
-                    model_path=model_path,
-                    n_gpu_layers=n_gpu_layers,  # This is the key parameter for GPU offloading
-                    n_ctx=2048,                 # Context size
-                    n_batch=512,                # Batch size
-                    n_threads=8,                # Number of CPU threads
-                    verbose=True                # Show loading details
+                # Initialize vLLM with optimized settings for 16GB GPU
+                # self.llm = LLM(
+                #     model=model_path,
+                #     gpu_memory_utilization=0.9,  # Use up to 90% of GPU memory
+                #     max_model_len=4096,          # Adjust based on your needs
+                #     tensor_parallel_size=tensor_parallel_size,
+                #     enforce_eager=True,          # Better memory efficiency
+                #     dtype="float16"              # Use FP16 for better performance
+                # )
+                
+                # self.llm = LLM(
+                #     model=model_path,
+                #     gpu_memory_utilization=0.85,  # Slightly conservative
+                #     max_model_len=4096,
+                #     tensor_parallel_size=tensor_parallel_size,  # This will now be 2
+                #     enforce_eager=True,
+                #     dtype="float16"
+                # )
+                
+                self.llm = LLM(
+                    model=model_path,
+                    gpu_memory_utilization=0.85,  # Reduce from 0.9 for better stability
+                    max_model_len=4096,
+                    tensor_parallel_size=tensor_parallel_size,  # Now will be 2
+                    enforce_eager=True,
+                    dtype="float16",
+                    # distributed_init_method="auto"  # Add this line for auto GPU detection
                 )
                 
-                logging.info("Model loaded successfully with GPU support")
+                # Set up sampling parameters
+                self.sampling_params = SamplingParams(
+                    temperature=0.0,
+                    max_tokens=1500,
+                    stop=["\n\n"],  # Stop on double newline
+                    skip_special_tokens=True
+                )
+                
+                # Initialize tokenizer
+                self.tokenizer = AutoTokenizer.from_pretrained(model_path)
+                
+                logging.info("vLLM loaded successfully")
                 
             except Exception as e:
-                logging.error(f"Error loading model: {e}")
+                logging.error(f"Error loading vLLM: {e}")
                 raise
-            
+        else:
+            logging.info("Using API for content cleaning")
+            if not api_endpoint or not api_key:
+                raise ValueError("API endpoint and key are required when not using local model")
+    
     def read_file(self, filepath):
         """Read content from a file."""
         try:
@@ -102,11 +132,11 @@ class ContentCleaner:
         return metadata
     
     def clean_with_local_model(self, content, topic):
-        """Clean content using a local LLM (Llama.cpp)."""
+        """Clean content using vLLM for efficient CUDA inference."""
+        
         # Create prompt for the model
-        prompt = f"""
-You are a content cleaning and information extraction assistant.
-Your task is to extract relevant, high-quality information from web content.
+        system_message = "You are a content cleaning and information extraction assistant."
+        user_message = f"""Your task is to extract relevant, high-quality information from web content.
 
 The topic is: {topic}
 
@@ -120,22 +150,23 @@ Please analyze the following scraped web content and:
 Here is the scraped content:
 {content[:4000]}  # Truncating to avoid token limits
 
-Return ONLY the cleaned, relevant information without any additional commentary.
-        """
+Return ONLY the cleaned, relevant information without any additional commentary."""
+        
+        # Format the prompt based on model type
+        if "Llama-3" in self.llm.llm_engine.model_config.model:
+            # Llama 3 format
+            prompt = f"<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n{system_message}<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n{user_message}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
+        else:
+            # Generic format
+            prompt = f"System: {system_message}\n\nUser: {user_message}\n\nAssistant:"
         
         try:
-            # Generate text using Llama.cpp
-            output = self.llm(
-                prompt,
-                max_tokens=1500,
-                temperature=0,  # Greedy decoding
-                # stop=[]  # Stop at double newline or adjust as needed
-            )
-            response = output['choices'][0]['text']
-            print(f"\n{'='*60}")
-            print(f"Response: {response}")
-            print(f"\n{'='*60}")
-            return response.strip()
+            # Generate text using vLLM
+            outputs = self.llm.generate([prompt], self.sampling_params)
+            response = outputs[0].outputs[0].text.strip()
+            
+            return response
+            
         except Exception as e:
             logging.error(f"Error generating cleaned content: {e}")
             return ""
@@ -264,10 +295,11 @@ Return ONLY the cleaned, relevant information without any additional commentary.
             content = self.read_file(file)
             all_cleaned_content += content + "\n\n"
         
-        prompt = f"""
-You are a research assistant tasked with creating a comprehensive topic overview.
-
-Topic: {topic}
+        # Limit content to avoid token limit issues
+        truncated_content = all_cleaned_content[:8000]  # Larger than before due to vLLM efficiency
+        
+        system_message = "You are a research assistant tasked with creating a comprehensive topic overview."
+        user_message = f"""Topic: {topic}
 
 Based on the following cleaned research data, create a structured overview that:
 1. Summarizes the key aspects of the topic
@@ -276,20 +308,29 @@ Based on the following cleaned research data, create a structured overview that:
 4. Highlights important facts, trends, and insights
 
 Here's the cleaned research data:
-{all_cleaned_content[:6000]}
+{truncated_content}
 
-Your overview should be comprehensive but focused, capturing the essence of the topic.
-        """
+Your overview should be comprehensive but focused, capturing the essence of the topic."""
         
         if self.use_local_model:
             try:
-                output = self.llm(
-                    prompt,
+                # Format prompt
+                if "Llama-3" in self.llm.llm_engine.model_config.model:
+                    prompt = f"<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n{system_message}<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n{user_message}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
+                else:
+                    prompt = f"System: {system_message}\n\nUser: {user_message}\n\nAssistant:"
+                
+                # Generate with slightly higher temperature for creativity
+                sampling_params = SamplingParams(
+                    temperature=0.2,
                     max_tokens=2000,
-                    temperature=0.2,  # Slightly higher for creativity in overview
-                    stop=["\n\n"]
+                    stop=["\n\n"],
+                    skip_special_tokens=True
                 )
-                overview = output['choices'][0]['text']
+                
+                outputs = self.llm.generate([prompt], sampling_params)
+                overview = outputs[0].outputs[0].text.strip()
+                
             except Exception as e:
                 logging.error(f"Error generating topic overview: {e}")
                 overview = ""
@@ -301,8 +342,8 @@ Your overview should be comprehensive but focused, capturing the essence of the 
             data = {
                 "model": "gpt-3.5-turbo",
                 "messages": [
-                    {"role": "system", "content": "You are a research assistant."},
-                    {"role": "user", "content": prompt}
+                    {"role": "system", "content": system_message},
+                    {"role": "user", "content": user_message}
                 ]
             }
             try:
@@ -322,40 +363,27 @@ Your overview should be comprehensive but focused, capturing the essence of the 
         return overview_path
 
 # Example usage
-# if __name__ == "__main__":
-#     TOPIC = "southpark cartoon, cartman"
-    
-#     cleaner = ContentCleaner(
-#         input_dir="search_content",
-#         output_dir="CleanSC",
-#         use_local_model=True,
-#         model_path="/home/horus/Projects/Models/gemma-3-finetune.Q8_0.gguf",  # Replace with actual GGUF file path
-#         n_ctx=2048
-#     )
-    
-#     processed_files = cleaner.process_all_files(TOPIC)
-#     if processed_files:
-#         cleaner.generate_topic_overview(TOPIC, processed_files)
-        
-        
-# Example usage
 if __name__ == "__main__":
     TOPIC = "southpark cartoon, cartman"
     
+    # Initialize ContentCleaner with vLLM
+    # cleaner = ContentCleaner(
+    #     input_dir="search_content",
+    #     output_dir="CleanSC",
+    #     use_local_model=True,
+    #     model_path="/home/horus/Projects/Models/VLLM/Llama-3-8B-Instruct",  # Example model
+    #     tensor_parallel_size=1
+    # )
+    
+# Modify your ContentCleaner initialization
     cleaner = ContentCleaner(
         input_dir="search_content",
         output_dir="CleanSC",
         use_local_model=True,
-        model_path="/home/horus/Projects/Models/gemma-3-finetune.Q8_0.gguf",
-        n_gpu_layers=35  # Make sure this is passed correctly
+        model_path="/home/horus/Projects/Models/VLLM/Llama-3-8B-Instruct",
+        tensor_parallel_size=2  # This tells vLLM to use 2 GPUs
     )
-    
+        
     processed_files = cleaner.process_all_files(TOPIC)
     if processed_files:
         cleaner.generate_topic_overview(TOPIC, processed_files)
-        
-        
-# python -c "from llama_cpp import Llama; llm = Llama(model_path='/home/horus/Projects/Models/gemma-3-finetune.Q8_0.gguf'); output = llm('Hello, world!', max_tokens=10); echo $output"
-# set -x LD_LIBRARY_PATH ~/Workspace/llama.cpp/build/bin /usr/local/cuda-12.8/lib64 $LD_LIBRARY_PATH
-# set -x CMAKE_ARGS "-DLLAMA_BUILD=OFF -DGGML_CUDA=ON -DLLAMA_INCLUDE_DIR=$HOME/Workspace/llama.cpp/include -DLLAMA_LIBRARY=$HOME/Workspace/llama.cpp/build/bin/libllama.so"
-
