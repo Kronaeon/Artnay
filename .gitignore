@@ -1,0 +1,28 @@
+
+
+
+
+# just content creation files that are too big to be in the repo
+CleanSC/
+search_content/
+search_content0/
+
+
+# mmodules im tired of pushing.
+ModulesDepr/
+Modules_A/
+
+# cluttering stuff up so im moving it to here.
+testScripts/
+
+# parts that I should include but later.
+
+scripts/
+
+
+
+
+# git stuff:
+commitstuff/
+
+
