@@ -11,121 +11,83 @@ from dia.model import Dia
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
-# ======== New addtional blending methods start ========
+import os
+import re
+import logging
+import numpy as np
+import torch
+import soundfile as sf
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple, Any
+import subprocess
 
-def improved_spectral_blend(audio1, audio2, sr, ratio=0.5):
-    """Blend two voices in the spectral domain for more natural blending"""
-    import numpy as np
-    import librosa
-    
-    # Compute Short-Time Fourier Transform (STFT) for both audio files
-    stft1 = librosa.stft(audio1)
-    stft2 = librosa.stft(audio2)
-    
-    # Get magnitude and phase
-    mag1, phase1 = librosa.magphase(stft1)
-    mag2, phase2 = librosa.magphase(stft2)
-    
-    # Blend magnitudes and phases
-    blended_mag = (1 - ratio) * mag1 + ratio * mag2
-    
-    # For phase, we'll use a weighted approach based on magnitude
-    # This helps preserve the dominant characteristics
-    mask = mag1 > mag2
-    blended_phase = np.zeros_like(phase1, dtype=complex)
-    blended_phase[mask] = phase1[mask]
-    blended_phase[~mask] = phase2[~mask]
-    
-    # Combine blended magnitude and phase
-    blended_stft = blended_mag * blended_phase
-    
-    # Inverse STFT to get the blended audio
-    blended_audio = librosa.istft(blended_stft, length=len(audio1))
-    
-    return blended_audio
+# Remove or simplify the previous blending functions and add these simpler ones:
 
-def crossfade_morph(audio1, audio2, sr, ratio=0.5, segment_length_ms=500):
+def simple_synchronize(audio1, audio2, sr):
     """
-    Create a voice that morphs between two voices using segmented crossfades
+    Simple time-stretching approach that avoids complex library dependencies
     """
-    import numpy as np
+    # Get durations
+    dur1 = len(audio1) / sr
+    dur2 = len(audio2) / sr
     
-    # Convert segment length from ms to samples
-    segment_samples = int(segment_length_ms * sr / 1000)
+    # Calculate time stretch factor
+    stretch_factor = dur1 / dur2
     
-    # Ensure both audios are the same length
+    # Only stretch if there's a significant difference
+    if abs(1 - stretch_factor) > 0.05:
+        try:
+            # Use scipy's resample function which has fewer dependencies
+            from scipy import signal
+            logging.info(f"Resampling voice 2 with factor {stretch_factor:.3f}")
+            
+            # Calculate new length
+            new_len = int(len(audio2) / stretch_factor)
+            
+            # Resample
+            audio2_synced = signal.resample(audio2, new_len)
+            return audio1, audio2_synced
+        except Exception as e:
+            logging.warning(f"Resampling failed: {e}, using original audio")
+    
+    return audio1, audio2
+
+def simple_blend(audio1, audio2, ratio=0.5):
+    """
+    Simple, robust blending approach
+    """
+    # Ensure same length
     min_len = min(len(audio1), len(audio2))
     audio1 = audio1[:min_len]
     audio2 = audio2[:min_len]
     
-    # Create output buffer
-    blended_audio = np.zeros_like(audio1)
+    # Apply cosine crossfade windows
+    fade_len = min_len
+    fade_in = np.cos(np.linspace(np.pi, 0, fade_len)) * 0.5 + 0.5
+    fade_out = np.cos(np.linspace(0, np.pi, fade_len)) * 0.5 + 0.5
     
-    # Number of segments
-    num_segments = min_len // segment_samples
+    # Apply weighted fade
+    audio1_fade = audio1 * fade_out * (1 - ratio)
+    audio2_fade = audio2 * fade_in * ratio
     
-    for i in range(num_segments):
-        start = i * segment_samples
-        end = start + segment_samples
-        
-        # Create crossfade window
-        fade_in = np.linspace(0, 1, segment_samples)
-        fade_out = np.linspace(1, 0, segment_samples)
-        
-        # Randomly select dominant voice for this segment, with bias based on ratio
-        if np.random.random() < ratio:
-            # Voice 2 dominant
-            segment = audio2[start:end] * fade_out + audio1[start:end] * fade_in
-        else:
-            # Voice 1 dominant
-            segment = audio1[start:end] * fade_out + audio2[start:end] * fade_in
-        
-        blended_audio[start:end] = segment
-    
-    # Handle any remaining samples
-    if min_len % segment_samples > 0:
-        start = num_segments * segment_samples
-        # Just use weighted average for the last partial segment
-        blended_audio[start:] = (1-ratio) * audio1[start:] + ratio * audio2[start:]
-    
-    return blended_audio
-
-def formant_preserving_blend(audio1, audio2, sr, ratio=0.5):
-    """Blend voices while attempting to preserve formant structures"""
-    import numpy as np
-    import librosa
-    
-    # Compute mel spectrograms
-    n_fft = 2048
-    hop_length = 512
-    n_mels = 128
-    
-    mel_spec1 = librosa.feature.melspectrogram(y=audio1, sr=sr, n_fft=n_fft, 
-                                             hop_length=hop_length, n_mels=n_mels)
-    mel_spec2 = librosa.feature.melspectrogram(y=audio2, sr=sr, n_fft=n_fft, 
-                                             hop_length=hop_length, n_mels=n_mels)
-    
-    # Convert to log scale
-    log_mel1 = librosa.power_to_db(mel_spec1)
-    log_mel2 = librosa.power_to_db(mel_spec2)
-    
-    # Blend log mel spectrograms
-    blended_log_mel = (1 - ratio) * log_mel1 + ratio * log_mel2
-    
-    # Convert back to linear scale
-    blended_mel = librosa.db_to_power(blended_log_mel)
-    
-    # Attempt to reconstruct audio
-    # This is an approximation; perfect reconstruction isn't possible with just mel specs
-    blended_audio = librosa.feature.inverse.mel_to_audio(
-        blended_mel, sr=sr, n_fft=n_fft, hop_length=hop_length
-    )
+    # Mix
+    blended = audio1_fade + audio2_fade
     
     # Normalize
-    blended_audio = librosa.util.normalize(blended_audio)
+    if np.max(np.abs(blended)) > 0:
+        blended = blended / np.max(np.abs(blended)) * 0.9
     
-    return blended_audio
+    return blended
 
+def clean_audio_simple(audio):
+    """
+    Very simple audio cleaning without complex dependencies
+    """
+    # Simple normalization
+    if np.max(np.abs(audio)) > 0:
+        audio = audio / np.max(np.abs(audio)) * 0.9
+    
+    return audio
 
 
 # ======== New addtional blending methods end ========
@@ -184,7 +146,7 @@ def main():
     parser.add_argument("--ratio", type=float, default=0.5, help="Blend ratio (0.0-1.0)")
     parser.add_argument("--output-dir", default="media_assets/audio", help="Output directory")
     parser.add_argument("--preprocess", action="store_true", help="Preprocess audio files")
-    parser.add_argument("--test-text", default="Hi. This is a test of the blended voice. Now tell me, how does it sound?", 
+    parser.add_argument("--test-text", default="Well, here we go again. Quickly now—read this line with purpose, pause... then shift tone. Do rising questions sound right? Or do they fall flat? Either way: crisp diction, varied rhythm, full voice range. That should do it, wouldn’t you say?", 
                         help="Text to synthesize with blended voice")
     parser.add_argument("--model-path", default="/home/horus/Projects/Models/AUDIOMODELS/nari-labs",
                        help="Path to Dia model")
@@ -323,9 +285,10 @@ def main():
         except Exception as e:
             logging.error(f"Error in blending approach 1: {e}")
         
-        # IMPROVED BLENDING APPROACH
+
+        # SIMPLIFIED ROBUST BLENDING APPROACH
         try:
-            logging.info("Attempting improved voice blending with spectral techniques")
+            logging.info("Attempting simplified robust voice blending")
             
             # Load the outputs as raw audio data
             try:
@@ -349,53 +312,72 @@ def main():
             if raw_audio1 is not None and raw_audio2 is not None:
                 # Ensure both have the same sample rate
                 if sr1 != sr2:
-                    import librosa
-                    raw_audio2 = librosa.resample(raw_audio2, orig_sr=sr2, target_sr=sr1)
-                    sr2 = sr1
+                    try:
+                        from scipy import signal
+                        raw_audio2 = signal.resample(raw_audio2, int(len(raw_audio2) * sr1 / sr2))
+                        sr2 = sr1
+                    except Exception as e:
+                        logging.error(f"Error resampling: {e}")
+                        # Continue with potentially mismatched sample rates
                 
-                # Trim to matching length
-                min_len = min(len(raw_audio1), len(raw_audio2))
-                raw_audio1 = raw_audio1[:min_len]
-                raw_audio2 = raw_audio2[:min_len]
+                # Step 1: Synchronize with simple approach
+                logging.info("Step 1: Basic voice synchronization")
+                sync_audio1, sync_audio2 = simple_synchronize(raw_audio1, raw_audio2, sr1)
                 
-                # Import necessary libraries
-                import librosa
-                import numpy as np
+                # Save synchronized audio
+                sync1_path = os.path.join(args.output_dir, "voice1_synced.wav")
+                sync2_path = os.path.join(args.output_dir, "voice2_synced.wav")
+                sf.write(sync1_path, sync_audio1, sr1)
+                sf.write(sync2_path, sync_audio2, sr1)
+                logging.info(f"Synchronized voices saved")
                 
-                # Try different blending methods and save each
+                # Step 2: Create a few different blends with different ratios
+                logging.info("Step 2: Creating blended variants")
                 
-                # 1. Spectral blending
-                blended_spectral = improved_spectral_blend(raw_audio1, raw_audio2, sr1, ratio=args.ratio)
-                spectral_output_path = os.path.join(args.output_dir, "blended_voice_spectral.wav")
-                sf.write(spectral_output_path, blended_spectral, sr1)
-                logging.info(f"Spectral blended voice saved to {spectral_output_path}")
+                # Standard blend
+                blend_standard = simple_blend(sync_audio1, sync_audio2, ratio=args.ratio)
+                standard_path = os.path.join(args.output_dir, "blended_standard.wav")
+                sf.write(standard_path, blend_standard, sr1)
                 
-                # 2. Crossfade morphing
-                blended_crossfade = crossfade_morph(raw_audio1, raw_audio2, sr1, ratio=args.ratio)
-                crossfade_output_path = os.path.join(args.output_dir, "blended_voice_crossfade.wav")
-                sf.write(crossfade_output_path, blended_crossfade, sr1)
-                logging.info(f"Crossfade blended voice saved to {crossfade_output_path}")
+                # Voice 1 dominant (25% voice 2)
+                blend_v1 = simple_blend(sync_audio1, sync_audio2, ratio=0.25)
+                v1_path = os.path.join(args.output_dir, "blended_v1_dominant.wav")
+                sf.write(v1_path, blend_v1, sr1)
                 
-                # 3. Formant-preserving blend (most natural sounding)
+                # Voice 2 dominant (75% voice 2)
+                blend_v2 = simple_blend(sync_audio1, sync_audio2, ratio=0.75)
+                v2_path = os.path.join(args.output_dir, "blended_v2_dominant.wav")
+                sf.write(v2_path, blend_v2, sr1)
+                
+                # Clean the standard blend
+                final_audio = clean_audio_simple(blend_standard)
+                
+                # Save final output
+                final_output_path = os.path.join(args.output_dir, "blended_voice.wav")
+                sf.write(final_output_path, final_audio, sr1)
+                logging.info(f"Final blended voice saved to {final_output_path}")
+                
+                # Also save approach 1 as a possible fallback
                 try:
-                    blended_formant = formant_preserving_blend(raw_audio1, raw_audio2, sr1, ratio=args.ratio)
-                    formant_output_path = os.path.join(args.output_dir, "blended_voice_formant.wav")
-                    sf.write(formant_output_path, blended_formant, sr1)
-                    logging.info(f"Formant-preserving blended voice saved to {formant_output_path}")
-                    
-                    # Use the formant-preserving blend as the final output
-                    final_output_path = os.path.join(args.output_dir, "blended_voice.wav")
-                    sf.write(final_output_path, blended_formant, sr1)
-                    logging.info(f"Final blended voice saved to {final_output_path}")
+                    approach1_path = os.path.join(args.output_dir, "blended_voice_approach1.wav")
+                    if os.path.exists(approach1_path):
+                        fallback_path = os.path.join(args.output_dir, "blended_voice_fallback.wav")
+                        subprocess.run(['cp', approach1_path, fallback_path], check=True)
+                        logging.info(f"Approach 1 saved as fallback at {fallback_path}")
                 except Exception as e:
-                    logging.error(f"Error in formant-preserving blend: {e}")
-                    # Fall back to spectral blending for final output
-                    final_output_path = os.path.join(args.output_dir, "blended_voice.wav")
-                    sf.write(final_output_path, blended_spectral, sr1)
-                    logging.info(f"Final blended voice (fallback to spectral) saved to {final_output_path}")
+                    logging.error(f"Error saving fallback: {e}")
 
         except Exception as e:
-            logging.error(f"Error in improved blending approach: {e}")
+            logging.error(f"Error in simplified blending approach: {e}")
+            
+            # Ultimate fallback - just use voice1_output.wav
+            try:
+                if os.path.exists(voice1_output_path):
+                    final_output_path = os.path.join(args.output_dir, "blended_voice.wav")
+                    subprocess.run(['cp', voice1_output_path, final_output_path], check=True)
+                    logging.info(f"Using voice1 as ultimate fallback at {final_output_path}")
+            except Exception as e2:
+                logging.error(f"Error in ultimate fallback: {e2}")
             
     except Exception as e:
         logging.error(f"Error in voice blending process: {e}")
