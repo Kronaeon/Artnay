@@ -1,6 +1,6 @@
 """
-Enhanced YouTube Shorts Pipeline Integration with Dia Voice Generation
-This script combines content generation, script creation, and advanced audio generation.
+Enhanced YouTube Shorts Pipeline Integration with Dia Voice Generation and Voice Cloning
+This script combines content generation, script creation, advanced audio generation, and voice cloning.
 """
 
 import os
@@ -11,6 +11,8 @@ import argparse
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 import datetime
+import subprocess
+import re
 
 # Add parent directory to path to allow imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -32,7 +34,7 @@ logging.basicConfig(
 
 class EnhancedYouTubeShortsCreator:
     """
-    Enhanced YouTube Shorts content creation pipeline with advanced voice generation.
+    Enhanced YouTube Shorts content creation pipeline with advanced voice generation and voice cloning.
     """
     
     def __init__(self, 
@@ -102,64 +104,77 @@ class EnhancedYouTubeShortsCreator:
         return default_config
     
     def initialize(self):
-        """Initialize all pipeline components."""
-        self._initialize_script_generator()
-        self._initialize_audio_generator()
+        """Initialize only basic components, not models."""
+        # Only initialize directory structure and basic components
+        # Models will be loaded on-demand
         self._initialize_voice_preparation()
-    
+
     def _initialize_script_generator(self):
-        """Initialize the script generation component."""
-        logging.info("Initializing script generator...")
-        
-        config = self.config["script_model"]
-        self.script_generator = YouTubeShortsScriptGenerator(
-            input_dir=str(self.input_dir),
-            output_dir=str(self.output_dir / "scripts"),
-            model_path=config["model_path"],
-            n_gpu_layers=config["n_gpu_layers"],
-            n_ctx=config["n_ctx"],
-            n_batch=config["n_batch"]
-        )
-    
-    def _initialize_audio_generator(self):
-        """Initialize the audio generation component."""
-        logging.info("Initializing audio generator...")
-        
-        config = self.config["audio_model"]
-        model_name = "dia_1_6b" if self.use_dia else config.get("model_name", "gTTS")
-        
-        self.audio_generator = AudioGenerator(
-            output_dir=str(self.output_dir / "audio"),
-            model_name=model_name,
-            model_path=config.get("model_path")
-        )
-    
-    def _initialize_voice_preparation(self):
-        """Initialize voice preparation utilities."""
-        logging.info("Initializing voice preparation utilities...")
-        
-        self.voice_preparation = VoicePreparation(
-            output_dir=str(self.output_dir / "voice_samples")
-        )
-    
-    def create_script(self, topic: Optional[str] = None, style: str = "informative") -> Dict[str, Any]:
-        """
-        Generate a script for a YouTube Short.
-        
-        Args:
-            topic: Optional specific topic (otherwise uses cleaned content)
-            style: Script style ("informative", "entertaining", "educational")
+        """Initialize the script generation component when needed."""
+        if self.script_generator is None:
+            logging.info("Initializing script generator...")
             
-        Returns:
-            Dictionary with script information
-        """
+            config = self.config["script_model"]
+            self.script_generator = YouTubeShortsScriptGenerator(
+                input_dir=str(self.input_dir),
+                output_dir=str(self.output_dir / "scripts"),
+                model_path=config["model_path"],
+                n_gpu_layers=config["n_gpu_layers"],
+                n_ctx=config["n_ctx"],
+                n_batch=config["n_batch"]
+            )
+        return self.script_generator
+
+    def _initialize_audio_generator(self):
+        """Initialize the audio generation component when needed."""
+        if self.audio_generator is None:
+            # Unload script generator if it exists to free memory
+            if hasattr(self, 'script_generator') and self.script_generator is not None:
+                logging.info("Unloading script generator to free memory...")
+                self.script_generator = None
+                import torch
+                torch.cuda.empty_cache()  # Explicitly free CUDA memory
+            
+            logging.info("Initializing audio generator...")
+            
+            config = self.config["audio_model"]
+            model_name = "dia_1_6b" if self.use_dia else config.get("model_name", "gTTS")
+            
+            try:
+                self.audio_generator = AudioGenerator(
+                    output_dir=str(self.output_dir / "audio"),
+                    model_name=model_name,
+                    model_path=config.get("model_path")
+                )
+            except Exception as e:
+                logging.error(f"Failed to initialize audio generator: {e}")
+                # Fall back to gTTS if Dia fails
+                logging.info("Falling back to gTTS for audio generation...")
+                self.audio_generator = AudioGenerator(
+                    output_dir=str(self.output_dir / "audio"),
+                    model_name="gTTS"
+                )
+        
+        return self.audio_generator
+
+    def create_script(self, topic: Optional[str] = None, style: str = "informative") -> Dict[str, Any]:
+        """Generate a script for a YouTube Short."""
         logging.info(f"Generating {style} script for topic: {topic or 'from cleaned content'}")
         
         try:
-            script_data = self.script_generator.generate_script(style=style)
+            # Initialize script generator on-demand
+            script_generator = self._initialize_script_generator()
+            
+            script_data = script_generator.generate_script(style=style)
             script_file = script_data["file_path"]
             
             logging.info(f"Script generated successfully: {script_data['title']}")
+            
+            # Clear GPU memory after generation
+            self.script_generator = None
+            import torch
+            torch.cuda.empty_cache()
+            
             return {
                 "success": True,
                 "script_data": script_data,
@@ -368,6 +383,135 @@ class EnhancedYouTubeShortsCreator:
                 "error": str(e)
             }
     
+    def generate_narration_with_clone(self, 
+                                     script_file: str,
+                                     voice_sample: str,
+                                     voice_transcript: str,
+                                     output_dir: Optional[str] = None,
+                                     voice_settings: Optional[Dict[str, Any]] = None,
+                                     create_variants: bool = False,
+                                     preprocess: bool = False) -> Dict[str, Any]:
+        """
+        Generate audio narration using voice cloning technology.
+        
+        Args:
+            script_file: Path to script file
+            voice_sample: Path to voice sample WAV file
+            voice_transcript: Path to voice sample transcript
+            output_dir: Directory to save output audio
+            voice_settings: Voice modification settings (pitch, speed, etc.)
+            create_variants: Whether to create voice variants
+            preprocess: Whether to preprocess the voice sample
+            
+        Returns:
+            Dictionary with narration result
+        """
+        logging.info(f"Generating narration with voice cloning for script: {script_file}")
+        
+        try:
+            # Parse script to extract narration text
+            script_path = Path(script_file)
+            if not script_path.exists():
+                return {"success": False, "error": f"Script file not found: {script_file}"}
+            
+            # Create output directory
+            if output_dir is None:
+                output_dir = str(self.output_dir / "audio" / script_path.stem)
+            
+            # Ensure output directory exists
+            os.makedirs(output_dir, exist_ok=True)
+            
+            # Extract narration text from script
+            with open(script_file, 'r') as f:
+                script_content = f.read()
+                
+            # Parse script segments
+            hook_match = re.search(r'## HOOK.*?NARRATION:\*\* "([^"]+)"', script_content, re.DOTALL)
+            main_match = re.search(r'## MAIN CONTENT.*?NARRATION:\*\* "([^"]+)"', script_content, re.DOTALL)
+            conclusion_match = re.search(r'## CONCLUSION.*?NARRATION:\*\* "([^"]+)"', script_content, re.DOTALL)
+            
+            # Combine into test text for voice cloning
+            test_text = ""
+            if hook_match:
+                test_text += hook_match.group(1) + " "
+            if main_match:
+                test_text += main_match.group(1) + " "
+            if conclusion_match:
+                test_text += conclusion_match.group(1)
+            
+            if not test_text:
+                return {"success": False, "error": "No narration text found in script"}
+            
+            # Prepare voice_clone.py command
+            cmd = ["python", "voice_clone.py", voice_sample, voice_transcript, 
+                  "--output", output_dir, "--test-text", test_text]
+            
+            # Add optional parameters
+            if voice_settings:
+                if "pitch" in voice_settings:
+                    cmd.extend(["--pitch", str(voice_settings["pitch"])])
+                if "speed" in voice_settings:
+                    cmd.extend(["--speed", str(voice_settings["speed"])])
+                if "brightness" in voice_settings:
+                    cmd.extend(["--brightness", str(voice_settings["brightness"])])
+                if "expressiveness" in voice_settings:
+                    cmd.extend(["--expressiveness", str(voice_settings["expressiveness"])])
+            
+            if create_variants:
+                cmd.append("--create-variants")
+            
+            if preprocess:
+                cmd.append("--preprocess")
+            
+            # Run voice_clone.py
+            logging.info(f"Running voice cloning with command: {' '.join(cmd)}")
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            
+            if result.returncode != 0:
+                logging.error(f"Voice cloning failed: {result.stderr}")
+                return {
+                    "success": False,
+                    "error": f"Voice cloning failed: {result.stderr}"
+                }
+            
+            # Process results
+            audio_files = list(Path(output_dir).glob("*.wav"))
+            
+            # Create separate audio files for each segment if needed
+            segment_audio_files = self._create_segment_audio_files(script_file, output_dir)
+            
+            return {
+                "success": True,
+                "output_dir": output_dir,
+                "audio_files": [str(file) for file in audio_files],
+                "segment_audio_files": segment_audio_files
+            }
+            
+        except Exception as e:
+            logging.error(f"Narration generation with voice cloning failed: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    def _create_segment_audio_files(self, script_file, voice_output_dir):
+        """
+        Create separate audio files for each script segment.
+        This is a placeholder that would use audio processing to split 
+        the cloned audio into segments for hook, main, and conclusion.
+        """
+        # In a real implementation, you would:
+        # 1. Load the full cloned audio
+        # 2. Use audio processing to split it based on likely segment boundaries
+        # 3. Save each segment as a separate file
+        
+        # For now, just return a placeholder
+        return {
+            "hook": os.path.join(voice_output_dir, "hook.wav"),
+            "main": os.path.join(voice_output_dir, "main_content.wav"),
+            "conclusion": os.path.join(voice_output_dir, "conclusion.wav")
+        }
+    
     def create_complete_short(self, 
                             style: str = "informative",
                             voice_id: Optional[str] = None,
@@ -484,7 +628,6 @@ class EnhancedYouTubeShortsCreator:
                 "error": str(e)
             }
 
-
 def main():
     """Main function for command-line interface."""
     parser = argparse.ArgumentParser(description="Enhanced YouTube Shorts Creator")
@@ -494,7 +637,8 @@ def main():
     parser.add_argument("--input-dir", default="CleanSC", help="Input directory with cleaned content")
     parser.add_argument("--output-dir", default="media_assets", help="Output directory for media assets")
     parser.add_argument("--disable-dia", action="store_true", help="Disable Dia model and use fallback")
-    
+    parser.add_argument("--low-memory", action="store_true", help="Run in low memory mode (use CPU or lighter models)")
+
     # Commands
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
     
@@ -531,6 +675,19 @@ def main():
     narration_parser.add_argument("--voice", help="Voice ID to use")
     narration_parser.add_argument("--emotion", help="Emotion for narration")
     
+    # Generate narration with voice clone
+    voice_clone_parser = subparsers.add_parser("voice-clone", help="Generate narration using voice cloning")
+    voice_clone_parser.add_argument("script", help="Path to script file")
+    voice_clone_parser.add_argument("voice_sample", help="Path to voice sample WAV file")
+    voice_clone_parser.add_argument("voice_transcript", help="Path to voice sample transcript file")
+    voice_clone_parser.add_argument("--output-dir", help="Directory to save output audio")
+    voice_clone_parser.add_argument("--pitch", type=float, default=0.0, help="Pitch modification (-12 to 12)")
+    voice_clone_parser.add_argument("--speed", type=float, default=1.0, help="Speed factor (0.5 to 2.0)")
+    voice_clone_parser.add_argument("--brightness", type=float, default=0.0, help="Brightness (-1.0 to 1.0)")
+    voice_clone_parser.add_argument("--expressiveness", type=float, default=0.0, help="Expressiveness (0.0 to 1.0)")
+    voice_clone_parser.add_argument("--create-variants", action="store_true", help="Create voice variants")
+    voice_clone_parser.add_argument("--preprocess", action="store_true", help="Preprocess voice sample")
+    
     # Create complete short
     short_parser = subparsers.add_parser("short", help="Create a complete YouTube Short")
     short_parser.add_argument("--style", default="informative", 
@@ -538,6 +695,20 @@ def main():
                             help="Script style")
     short_parser.add_argument("--voice", help="Voice ID to use")
     short_parser.add_argument("--emotion", help="Emotion for narration")
+    
+    # Create complete short with voice clone
+    short_clone_parser = subparsers.add_parser("short-clone", help="Create a complete YouTube Short with voice cloning")
+    short_clone_parser.add_argument("--style", default="informative", 
+                                  choices=["informative", "entertaining", "educational", "controversial"],
+                                  help="Script style")
+    short_clone_parser.add_argument("voice_sample", help="Path to voice sample WAV file")
+    short_clone_parser.add_argument("voice_transcript", help="Path to voice sample transcript file")
+    short_clone_parser.add_argument("--pitch", type=float, default=0.0, help="Pitch modification (-12 to 12)")
+    short_clone_parser.add_argument("--speed", type=float, default=1.0, help="Speed factor (0.5 to 2.0)")
+    short_clone_parser.add_argument("--brightness", type=float, default=0.0, help="Brightness (-1.0 to 1.0)")
+    short_clone_parser.add_argument("--expressiveness", type=float, default=0.0, help="Expressiveness (0.0 to 1.0)")
+    short_clone_parser.add_argument("--create-variants", action="store_true", help="Create voice variants")
+    short_clone_parser.add_argument("--preprocess", action="store_true", help="Preprocess voice sample")
     
     args = parser.parse_args()
     
@@ -572,9 +743,44 @@ def main():
         result = creator.generate_narration(args.script, args.voice, 
                                          {"emotion": args.emotion} if args.emotion else None)
         
+    elif args.command == "voice-clone":
+        voice_settings = {
+            "pitch": args.pitch,
+            "speed": args.speed,
+            "brightness": args.brightness,
+            "expressiveness": args.expressiveness
+        }
+        result = creator.generate_narration_with_clone(
+            args.script, args.voice_sample, args.voice_transcript,
+            args.output_dir, voice_settings, args.create_variants, args.preprocess
+        )
+    
     elif args.command == "short":
         result = creator.create_complete_short(args.style, args.voice, args.emotion)
         
+    elif args.command == "short-clone":
+        # First create script
+        script_result = creator.create_script(style=args.style)
+        if not script_result["success"]:
+            print(json.dumps(script_result, indent=2))
+            return
+        
+        # Then generate narration with voice clone
+        voice_settings = {
+            "pitch": args.pitch,
+            "speed": args.speed,
+            "brightness": args.brightness,
+            "expressiveness": args.expressiveness
+        }
+        result = creator.generate_narration_with_clone(
+            script_result["script_file"], args.voice_sample, args.voice_transcript,
+            None, voice_settings, args.create_variants, args.preprocess
+        )
+        
+        # Add script info to result
+        if result and result["success"]:
+            result["script"] = script_result
+    
     else:
         parser.print_help()
         return
@@ -582,7 +788,6 @@ def main():
     # Print result
     if result:
         print(json.dumps(result, indent=2))
-
 
 if __name__ == "__main__":
     main()
