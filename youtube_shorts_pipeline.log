@@ -1,11 +1,227 @@
-2025-05-05 18:52:37,959 - INFO - Initializing script generator...
-2025-05-05 18:52:38,411 - INFO - Initializing model: /home/horus/Projects/Models/gemma-3-finetune.Q8_0.gguf
-2025-05-05 18:53:05,672 - INFO - Model loaded successfully in 27.26 seconds
-2025-05-05 18:53:05,672 - INFO - Initializing voice preparation utilities...
-2025-05-05 18:53:05,672 - INFO - Generating entertaining script for topic: from cleaned content
-2025-05-05 18:53:05,672 - INFO - Generating entertaining script...
-2025-05-05 18:53:05,672 - INFO - Loading topic overview from CleanSC/topic_overview.md
-2025-05-05 18:53:05,673 - INFO - Loaded topic: southpark cartoon, cartman
-2025-05-05 18:56:56,097 - INFO - Script generated in 230.42 seconds
-2025-05-05 18:56:56,099 - INFO - Script saved to media_assets/scripts/southpark-cartoon-cartman-entertaining-20250505-185656.md
-2025-05-05 18:56:56,100 - INFO - Script generated successfully: South Park's Cartman: You Won't Believe This! 🤯
+2025-05-05 19:01:21,753 - INFO - Initializing script generator...
+2025-05-05 19:01:21,915 - INFO - Initializing model: /home/horus/Projects/Models/gemma-3-finetune.Q8_0.gguf
+2025-05-05 19:01:25,149 - INFO - Model loaded successfully in 3.23 seconds
+2025-05-05 19:01:25,149 - INFO - Initializing voice preparation utilities...
+2025-05-05 19:01:25,150 - INFO - Generating entertaining script for topic: from cleaned content
+2025-05-05 19:01:25,150 - INFO - Generating entertaining script...
+2025-05-05 19:01:25,150 - INFO - Loading topic overview from CleanSC/topic_overview.md
+2025-05-05 19:01:25,150 - INFO - Loaded topic: southpark cartoon, cartman
+2025-05-05 19:05:23,829 - INFO - Script generated in 238.68 seconds
+2025-05-05 19:05:23,830 - INFO - Script saved to media_assets/scripts/southpark-cartoon-cartman-entertaining-20250505-190523.md
+2025-05-05 19:05:23,830 - INFO - Script generated successfully: South Park's Cartman: You Won't Believe This! 🤯
+2025-05-05 19:13:29,653 - INFO - Initializing script generator...
+2025-05-05 19:13:29,773 - INFO - Initializing model: /home/horus/Projects/Models/gemma-3-finetune.Q8_0.gguf
+2025-05-05 19:13:45,946 - INFO - Model loaded successfully in 16.17 seconds
+2025-05-05 19:13:45,946 - INFO - Initializing voice preparation utilities...
+2025-05-05 19:13:45,946 - INFO - Generating narration with voice cloning for script: scripts/southpark-cartoon-cartman-entertaining-20250505-190523.md
+2025-05-05 19:16:02,629 - INFO - Initializing script generator...
+2025-05-05 19:16:02,828 - INFO - Initializing model: /home/horus/Projects/Models/gemma-3-finetune.Q8_0.gguf
+2025-05-05 19:16:27,595 - INFO - Model loaded successfully in 24.77 seconds
+2025-05-05 19:16:27,595 - INFO - Initializing voice preparation utilities...
+2025-05-05 19:16:27,596 - INFO - Generating narration with voice cloning for script: scripts/southpark-cartoon-cartman-entertaining-20250505-190523.md
+2025-05-05 19:18:47,907 - INFO - Initializing script generator...
+2025-05-05 19:18:48,123 - INFO - Initializing model: /home/horus/Projects/Models/gemma-3-finetune.Q8_0.gguf
+2025-05-05 19:19:14,231 - INFO - Model loaded successfully in 26.11 seconds
+2025-05-05 19:19:14,231 - INFO - Initializing voice preparation utilities...
+2025-05-05 19:19:14,231 - INFO - Generating narration with voice cloning for script: scripts/southpark-cartoon-cartman-entertaining-20250505-190523.md
+2025-05-05 19:19:14,231 - INFO - Absolute script path: /home/horus/Workspace/Repos/artnayPIPELINEWORK/scripts/southpark-cartoon-cartman-entertaining-20250505-190523.md
+2025-05-05 19:19:14,232 - ERROR - Script file not found: /home/horus/Workspace/Repos/artnayPIPELINEWORK/scripts/southpark-cartoon-cartman-entertaining-20250505-190523.md
+2025-05-05 19:19:14,232 - INFO - Contents of directory /home/horus/Workspace/Repos/artnayPIPELINEWORK/scripts:
+2025-05-05 19:19:14,232 - ERROR - Directory /home/horus/Workspace/Repos/artnayPIPELINEWORK/scripts does not exist
+2025-05-05 19:36:15,106 - INFO - Initializing script generator...
+2025-05-05 19:36:15,329 - INFO - Initializing model: /home/horus/Projects/Models/gemma-3-finetune.Q8_0.gguf
+2025-05-05 19:36:47,458 - INFO - Model loaded successfully in 32.13 seconds
+2025-05-05 19:36:47,460 - INFO - Initializing voice preparation utilities...
+2025-05-05 19:36:47,460 - INFO - Generating narration with voice cloning for script: scripts/southpark-cartoon-cartman-entertaining-20250505-190523.md
+2025-05-05 19:36:47,460 - INFO - Absolute script path: media_assets/scripts/scripts/southpark-cartoon-cartman-entertaining-20250505-190523.md
+2025-05-05 19:36:47,460 - ERROR - Script file not found: media_assets/scripts/scripts/southpark-cartoon-cartman-entertaining-20250505-190523.md
+2025-05-05 19:36:47,460 - INFO - Contents of directory media_assets/scripts/scripts:
+2025-05-05 19:36:47,460 - ERROR - Directory media_assets/scripts/scripts does not exist
+2025-05-05 19:37:56,173 - INFO - Initializing script generator...
+2025-05-05 19:37:56,397 - INFO - Initializing model: /home/horus/Projects/Models/gemma-3-finetune.Q8_0.gguf
+2025-05-05 19:38:25,900 - INFO - Model loaded successfully in 29.50 seconds
+2025-05-05 19:38:25,901 - INFO - Initializing voice preparation utilities...
+2025-05-05 19:38:25,901 - INFO - Generating narration with voice cloning for script: southpark-cartoon-cartman-entertaining-20250505-190523.md
+2025-05-05 19:38:25,901 - INFO - Absolute script path: media_assets/scripts/southpark-cartoon-cartman-entertaining-20250505-190523.md
+2025-05-05 19:38:25,907 - ERROR - Narration generation with voice cloning failed: [Errno 2] No such file or directory: 'southpark-cartoon-cartman-entertaining-20250505-190523.md'
+2025-05-05 19:49:43,801 - INFO - Initializing script generator...
+2025-05-05 19:49:44,056 - INFO - Initializing model: /home/horus/Projects/Models/gemma-3-finetune.Q8_0.gguf
+2025-05-05 19:50:11,958 - INFO - Model loaded successfully in 27.90 seconds
+2025-05-05 19:50:11,959 - INFO - Initializing voice preparation utilities...
+2025-05-05 19:50:11,959 - INFO - Generating narration with voice cloning for script: southpark-cartoon-cartman-entertaining-20250505-190523.md
+2025-05-05 19:50:11,959 - INFO - Absolute script path: media_assets/scripts/southpark-cartoon-cartman-entertaining-20250505-190523.md
+2025-05-05 19:51:34,245 - INFO - Initializing script generator...
+2025-05-05 19:51:34,443 - INFO - Initializing model: /home/horus/Projects/Models/gemma-3-finetune.Q8_0.gguf
+2025-05-05 19:52:04,239 - INFO - Model loaded successfully in 29.80 seconds
+2025-05-05 19:52:04,241 - INFO - Initializing voice preparation utilities...
+2025-05-05 19:52:04,241 - INFO - Generating narration with voice cloning for script: ./media_assets/scripts/southpark-cartoon-cartman-entertaining-20250505-190523.md
+2025-05-05 19:52:04,241 - INFO - Absolute script path: media_assets/scripts/media_assets/scripts/southpark-cartoon-cartman-entertaining-20250505-190523.md
+2025-05-05 19:58:06,933 - INFO - Initializing script generator...
+2025-05-05 19:58:07,173 - INFO - Initializing model: /home/horus/Projects/Models/gemma-3-finetune.Q8_0.gguf
+2025-05-05 19:58:38,286 - INFO - Model loaded successfully in 31.11 seconds
+2025-05-05 19:58:38,287 - INFO - Initializing voice preparation utilities...
+2025-05-05 19:58:38,287 - INFO - Generating narration with voice cloning for script: southpark-cartoon-cartman-entertaining-20250505-190523.md
+2025-05-05 19:58:38,287 - INFO - Resolved paths:
+2025-05-05 19:58:38,287 - INFO - - Script: media_assets/scripts/southpark-cartoon-cartman-entertaining-20250505-190523.md
+2025-05-05 19:58:38,287 - INFO - - Voice sample: media_assets/voice_samples/sample0.wav
+2025-05-05 19:58:38,287 - INFO - - Voice transcript: media_assets/voice_samples/sample0.txt
+2025-05-05 19:58:38,287 - INFO - Script content preview: ---
+title: "South Park's Cartman: You Won't Believe This! 🤯"
+topic: "southpark cartoon, cartman"
+style: "entertaining"
+date: "2025-05-05 19:05:23"
+word_count: 74
+estimated_duration: 29.6
+validation: [...
+2025-05-05 19:58:38,288 - ERROR - No narration text found in script
+2025-05-05 19:58:38,288 - INFO - Script sections:
+2025-05-05 19:58:38,288 - INFO - Section 1:  HOOK
+**VISUAL:** Rapid cuts of Cartman's most iconic moments (e.g., laughing maniacally, scheming, ...
+2025-05-05 19:58:38,288 - INFO - Section 2:  MAIN CONTENT
+**VISUAL:** Split screen—one side showing Cartman's face, other side displaying text p...
+2025-05-05 19:58:38,288 - INFO - Section 3:  CONCLUSION
+**VISUAL:** Cartman's face with a smug grin, followed by a call to action graphic
+
+**NAR...
+2025-05-05 19:58:38,288 - INFO - Section 4: # METADATA
+- Word count (hook): 19
+- Word count (main): 24
+- Word count (conclusion): 31
+- Total wor...
+2025-05-05 19:58:43,862 - INFO - Initializing script generator...
+2025-05-05 19:58:44,067 - INFO - Initializing model: /home/horus/Projects/Models/gemma-3-finetune.Q8_0.gguf
+2025-05-05 19:59:11,174 - INFO - Model loaded successfully in 27.11 seconds
+2025-05-05 19:59:11,175 - INFO - Initializing voice preparation utilities...
+2025-05-05 19:59:11,175 - INFO - Generating narration with voice cloning for script: southpark-cartoon-cartman-entertaining-20250505-190523.md
+2025-05-05 19:59:11,175 - INFO - Resolved paths:
+2025-05-05 19:59:11,175 - INFO - - Script: media_assets/scripts/southpark-cartoon-cartman-entertaining-20250505-190523.md
+2025-05-05 19:59:11,175 - INFO - - Voice sample: media_assets/voice_samples/sample0.wav
+2025-05-05 19:59:11,175 - INFO - - Voice transcript: media_assets/voice_samples/sample0.txt
+2025-05-05 19:59:11,176 - INFO - Script content preview: ---
+title: "South Park's Cartman: You Won't Believe This! 🤯"
+topic: "southpark cartoon, cartman"
+style: "entertaining"
+date: "2025-05-05 19:05:23"
+word_count: 74
+estimated_duration: 29.6
+validation: [...
+2025-05-05 19:59:11,177 - ERROR - No narration text found in script
+2025-05-05 19:59:11,177 - INFO - Script sections:
+2025-05-05 19:59:11,177 - INFO - Section 1:  HOOK
+**VISUAL:** Rapid cuts of Cartman's most iconic moments (e.g., laughing maniacally, scheming, ...
+2025-05-05 19:59:11,177 - INFO - Section 2:  MAIN CONTENT
+**VISUAL:** Split screen—one side showing Cartman's face, other side displaying text p...
+2025-05-05 19:59:11,177 - INFO - Section 3:  CONCLUSION
+**VISUAL:** Cartman's face with a smug grin, followed by a call to action graphic
+
+**NAR...
+2025-05-05 19:59:11,177 - INFO - Section 4: # METADATA
+- Word count (hook): 19
+- Word count (main): 24
+- Word count (conclusion): 31
+- Total wor...
+2025-05-05 20:03:14,610 - INFO - Initializing script generator...
+2025-05-05 20:03:15,074 - INFO - Initializing model: /home/horus/Projects/Models/gemma-3-finetune.Q8_0.gguf
+2025-05-05 20:03:44,017 - INFO - Model loaded successfully in 28.94 seconds
+2025-05-05 20:03:44,018 - INFO - Initializing voice preparation utilities...
+2025-05-05 20:03:44,019 - INFO - Generating narration with voice cloning for script: southpark-cartoon-cartman-entertaining-20250505-190523.md
+2025-05-05 20:03:44,019 - INFO - Resolved paths:
+2025-05-05 20:03:44,019 - INFO - - Script: media_assets/scripts/southpark-cartoon-cartman-entertaining-20250505-190523.md
+2025-05-05 20:03:44,019 - INFO - - Voice sample: media_assets/voice_samples/sample0.wav
+2025-05-05 20:03:44,019 - INFO - - Voice transcript: media_assets/voice_samples/sample0.txt
+2025-05-05 20:03:44,020 - INFO - Script content preview: ---
+title: "South Park's Cartman: You Won't Believe This! 🤯"
+topic: "southpark cartoon, cartman"
+style: "entertaining"
+date: "2025-05-05 19:05:23"
+word_count: 74
+estimated_duration: 29.6
+validation: [...
+2025-05-05 20:03:44,021 - INFO - Found hook text: Cartman from South Park? He's ...
+2025-05-05 20:03:44,021 - INFO - Found main content text: First, Eric Cartman is a fourt...
+2025-05-05 20:03:44,021 - INFO - Found conclusion text: Cartman’s a mess, but he’s *So...
+2025-05-05 20:03:44,021 - INFO - Running voice cloning with command: python voice_clone.py media_assets/voice_samples/sample0.wav media_assets/voice_samples/sample0.txt --output-dir media_assets/audio/southpark-cartoon-cartman-entertaining-20250505-190523 --test-text Cartman from South Park? He's not just a kid—he's a cultural phenomenon! Let's break it down in 60 seconds. First, Eric Cartman is a fourth-grader with zero chill. Think psychopathic tendencies and schemes that'll make you cringe—like turning Scott Tenorman into chili! 🤢 Cartman’s a mess, but he’s *South Park’s* mess. What’s your favorite Cartman moment? Drop it in the comments! 👇 And don’t forget to like and subscribe for more chaotic content! 😉 --pitch 0.5 --speed 1.1 --brightness 0.0 --expressiveness 0.2 --model-path /home/horus/Projects/Models/AUDIOMODELS/nari-labs
+2025-05-05 20:05:26,288 - INFO - Voice cloning process output: Loading weights from local directory
+generate: starting generation loop
+generate: using use_torch_compile=True, the first step may be slow
+generate step 1290: speed=6.720 tokens/s, realtime factor=0.078x
+generate step 1376: speed=62.577 tokens/s, realtime factor=0.728x
+generate step 1462: speed=63.050 tokens/s, realtime factor=0.733x
+generate step 1548: speed=62.705 tokens/s, realtime factor=0.729x
+generate step 1634: speed=62.937 tokens/s, realtime factor=0.732x
+generate step 1720: speed=62.996 tokens/s, realtime factor=0.733x
+generate step 1806: speed=62.751 tokens/s, realtime factor=0.730x
+generate step 1892: speed=62.598 tokens/s, realtime factor=0.728x
+generate step 1978: speed=63.040 tokens/s, realtime factor=0.733x
+generate step 2064: speed=63.240 tokens/s, realtime factor=0.735x
+generate step 2150: speed=62.723 tokens/s, realtime factor=0.729x
+generate step 2236: speed=62.251 tokens/s, realtime factor=0.724x
+generate step 2322: speed=62.798 tokens/s, realtime factor=0.730x
+generate step 2408: speed=62.775 tokens/s, realtime factor=0.730x
+generate step 2494: speed=61.860 tokens/s, realtime factor=0.719x
+generate: avg steps=1277.0, total duration=77.706s
+Error in decode method: CUDA out of memory. Tried to allocate 240.00 MiB. GPU 0 has a total capacity of 15.56 GiB of which 262.62 MiB is free. Process 379360 has 9.93 GiB memory in use. Including non-PyTorch memory, this process has 4.22 GiB memory in use. Of the allocated memory 3.83 GiB is allocated by PyTorch, with 22.00 MiB allocated in private pools (e.g., CUDA Graphs), and 215.56 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+
+2025-05-05 20:05:26,289 - WARNING - Voice cloning process warnings: 2025-05-05 20:03:49,727 - INFO - Loading Dia model from /home/horus/Projects/Models/AUDIOMODELS/nari-labs
+/home/horus/Workspace/miniconda3/envs/aqueduct/lib/python3.10/site-packages/torch/nn/utils/weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+2025-05-05 20:04:05,990 - INFO - Generating reference audio with cloned voice...
+2025-05-05 20:05:23,883 - ERROR - Error generating reference audio: CUDA out of memory. Tried to allocate 240.00 MiB. GPU 0 has a total capacity of 15.56 GiB of which 262.62 MiB is free. Process 379360 has 9.93 GiB memory in use. Including non-PyTorch memory, this process has 4.22 GiB memory in use. Of the allocated memory 3.83 GiB is allocated by PyTorch, with 22.00 MiB allocated in private pools (e.g., CUDA Graphs), and 215.56 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+2025-05-05 20:05:23,883 - ERROR - Error in voice cloning process: CUDA out of memory. Tried to allocate 240.00 MiB. GPU 0 has a total capacity of 15.56 GiB of which 262.62 MiB is free. Process 379360 has 9.93 GiB memory in use. Including non-PyTorch memory, this process has 4.22 GiB memory in use. Of the allocated memory 3.83 GiB is allocated by PyTorch, with 22.00 MiB allocated in private pools (e.g., CUDA Graphs), and 215.56 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+
+2025-05-05 20:05:26,290 - WARNING - No audio files found in media_assets/audio/southpark-cartoon-cartman-entertaining-20250505-190523 after voice cloning
+2025-05-05 20:18:19,184 - INFO - Initializing voice preparation utilities...
+2025-05-05 20:18:19,184 - INFO - Generating narration with voice cloning for script: southpark-cartoon-cartman-entertaining-20250505-190523.md
+2025-05-05 20:18:19,184 - INFO - Resolved paths:
+2025-05-05 20:18:19,184 - INFO - - Script: media_assets/scripts/southpark-cartoon-cartman-entertaining-20250505-190523.md
+2025-05-05 20:18:19,184 - INFO - - Voice sample: media_assets/voice_samples/sample0.wav
+2025-05-05 20:18:19,184 - INFO - - Voice transcript: media_assets/voice_samples/sample0.txt
+2025-05-05 20:18:19,185 - INFO - Script content preview: ---
+title: "South Park's Cartman: You Won't Believe This! 🤯"
+topic: "southpark cartoon, cartman"
+style: "entertaining"
+date: "2025-05-05 19:05:23"
+word_count: 74
+estimated_duration: 29.6
+validation: [...
+2025-05-05 20:18:19,185 - INFO - Found hook text: Cartman from South Park? He's ...
+2025-05-05 20:18:19,185 - INFO - Found main content text: First, Eric Cartman is a fourt...
+2025-05-05 20:18:19,185 - INFO - Found conclusion text: Cartman’s a mess, but he’s *So...
+2025-05-05 20:18:19,185 - INFO - GPU memory cleared for voice cloning
+2025-05-05 20:18:19,318 - INFO - GPU memory cleared. Available: 0.00GB used, 0.00GB reserved
+2025-05-05 20:18:19,318 - INFO - Running voice cloning with command: python voice_clone.py media_assets/voice_samples/sample0.wav media_assets/voice_samples/sample0.txt --output-dir media_assets/audio/southpark-cartoon-cartman-entertaining-20250505-190523 --test-text Cartman from South Park? He's not just a kid—he's a cultural phenomenon! Let's break it down in 60 seconds. First, Eric Cartman is a fourth-grader with zero chill. Think psychopathic tendencies and schemes that'll make you cringe—like turning Scott Tenorman into chili! 🤢 Cartman’s a mess, but he’s *South Park’s* mess. What’s your favorite Cartman moment? Drop it in the comments! 👇 And don’t forget to like and subscribe for more chaotic content! 😉 --pitch 0.5 --speed 1.1 --brightness 0.0 --expressiveness 0.2 --model-path /home/horus/Projects/Models/AUDIOMODELS/nari-labs
+2025-05-05 20:20:00,515 - INFO - Voice cloning process output: Loading weights from local directory
+generate: starting generation loop
+generate: using use_torch_compile=True, the first step may be slow
+generate step 1290: speed=6.791 tokens/s, realtime factor=0.079x
+generate step 1376: speed=61.876 tokens/s, realtime factor=0.719x
+generate step 1462: speed=62.160 tokens/s, realtime factor=0.723x
+generate step 1548: speed=62.048 tokens/s, realtime factor=0.721x
+generate step 1634: speed=61.852 tokens/s, realtime factor=0.719x
+generate step 1720: speed=62.265 tokens/s, realtime factor=0.724x
+generate step 1806: speed=62.169 tokens/s, realtime factor=0.723x
+generate step 1892: speed=61.956 tokens/s, realtime factor=0.720x
+generate step 1978: speed=61.665 tokens/s, realtime factor=0.717x
+generate step 2064: speed=61.740 tokens/s, realtime factor=0.718x
+generate step 2150: speed=61.907 tokens/s, realtime factor=0.720x
+generate step 2236: speed=61.221 tokens/s, realtime factor=0.712x
+generate step 2322: speed=61.863 tokens/s, realtime factor=0.719x
+generate step 2408: speed=61.842 tokens/s, realtime factor=0.719x
+generate step 2494: speed=61.934 tokens/s, realtime factor=0.720x
+generate step 2580: speed=61.509 tokens/s, realtime factor=0.715x
+generate: avg steps=1376.0, total duration=76.129s
+
+2025-05-05 20:20:00,516 - WARNING - Voice cloning process warnings: 2025-05-05 20:18:22,638 - INFO - Loading Dia model from /home/horus/Projects/Models/AUDIOMODELS/nari-labs
+/home/horus/Workspace/miniconda3/envs/aqueduct/lib/python3.10/site-packages/torch/nn/utils/weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+2025-05-05 20:18:37,571 - INFO - Generating reference audio with cloned voice...
+2025-05-05 20:19:54,062 - INFO - Reference cloned audio saved to media_assets/audio/southpark-cartoon-cartman-entertaining-20250505-190523/cloned_reference.wav
+2025-05-05 20:19:54,062 - INFO - Extracting test portion from reference audio...
+2025-05-05 20:19:57,862 - INFO - Extracted test audio starting at 0.59 of total duration
+2025-05-05 20:19:57,863 - INFO - Applying voice modifications...
+2025-05-05 20:19:57,863 - INFO - Modifying pitch by 0.5 semitones...
+2025-05-05 20:19:57,954 - INFO - Modifying speed by factor 1.1...
+2025-05-05 20:19:58,010 - INFO - Modifying expressiveness by 0.2...
+2025-05-05 20:19:58,079 - INFO - Audio saved to media_assets/audio/southpark-cartoon-cartman-entertaining-20250505-190523/cloned_modified.wav
+2025-05-05 20:19:58,079 - INFO - Voice cloning and modification completed successfully
+
