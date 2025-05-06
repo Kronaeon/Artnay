@@ -1,6 +1,7 @@
 """
 Enhanced YouTube Shorts Pipeline Integration with Dia Voice Cloning
-This script combines content generation, script creation, and high-quality voice cloning.
+This script combines content generation, script creation, and high-quality voice cloning
+with proper GPU memory management.
 """
 
 import os
@@ -10,9 +11,12 @@ import json
 import argparse
 import re
 import subprocess
+import gc
+import torch
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 import datetime
+from contextlib import contextmanager
 
 # Configure logging
 logging.basicConfig(
@@ -24,9 +28,24 @@ logging.basicConfig(
     ]
 )
 
+@contextmanager
+def gpu_memory_manager():
+    """Context manager to ensure proper GPU memory cleanup between operations."""
+    try:
+        yield
+    finally:
+        # Force garbage collection
+        gc.collect()
+        
+        # Clean CUDA cache if torch is available
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            logging.info(f"GPU memory cleared. Available: {torch.cuda.memory_allocated(0)/1e9:.2f}GB used, {torch.cuda.memory_reserved(0)/1e9:.2f}GB reserved")
+        
 class EnhancedYouTubeShortsCreator:
     """
-    Enhanced YouTube Shorts content creation pipeline with high-quality voice cloning.
+    Enhanced YouTube Shorts content creation pipeline with high-quality voice cloning
+    and memory management.
     """
     
     def __init__(self, 
@@ -36,8 +55,8 @@ class EnhancedYouTubeShortsCreator:
                  use_dia: bool = True):
         """Initialize the pipeline with configuration."""
         
-        self.input_dir = Path(input_dir)
-        self.output_dir = Path(output_dir)
+        self.input_dir = Path(input_dir or "CleanSC")
+        self.output_dir = Path(output_dir or "media_assets")
         self.config = self._load_config(config_file)
         self.use_dia = use_dia
         
@@ -48,16 +67,22 @@ class EnhancedYouTubeShortsCreator:
         (self.output_dir / "videos").mkdir(exist_ok=True)
         (self.output_dir / "voice_samples").mkdir(exist_ok=True)
         
-        # Initialize components
+        # Initialize references to components (load only when needed)
         self.script_generator = None
         self.voice_preparation = None
         
-        # Import components only after creating directories
-        from tubeShortsScriptGen import YouTubeShortsScriptGenerator
-        from voice_preparation import VoicePreparation
-        
-        self.YouTubeShortsScriptGenerator = YouTubeShortsScriptGenerator
-        self.VoicePreparation = VoicePreparation
+        # Import components (classes only, not instances)
+        try:
+            # Import but don't instantiate
+            from tubeShortsScriptGen import YouTubeShortsScriptGenerator
+            from voice_preparation import VoicePreparation
+            
+            self.YouTubeShortsScriptGenerator = YouTubeShortsScriptGenerator
+            self.VoicePreparation = VoicePreparation
+        except ImportError as e:
+            logging.error(f"Failed to import required modules: {e}")
+            logging.error("Make sure tubeShortsScriptGen.py and voice_preparation.py are in your Python path.")
+            raise
     
     def _load_config(self, config_file: Optional[str]) -> Dict[str, Any]:
         """Load configuration from file or use defaults."""
@@ -97,31 +122,59 @@ class EnhancedYouTubeShortsCreator:
         return default_config
     
     def initialize(self):
-        """Initialize all pipeline components."""
-        self._initialize_script_generator()
+        """Initialize needed pipeline components."""
+        # Initialize voice preparation (minimal memory usage)
         self._initialize_voice_preparation()
+        # Script generator is only initialized when needed
     
     def _initialize_script_generator(self):
-        """Initialize the script generation component."""
+        """Initialize the script generation component when needed."""
+        if self.script_generator is not None:
+            logging.info("Script generator already initialized")
+            return
+            
         logging.info("Initializing script generator...")
         
-        config = self.config["script_model"]
-        self.script_generator = self.YouTubeShortsScriptGenerator(
-            input_dir=str(self.input_dir),
-            output_dir=str(self.output_dir / "scripts"),
-            model_path=config["model_path"],
-            n_gpu_layers=config["n_gpu_layers"],
-            n_ctx=config["n_ctx"],
-            n_batch=config["n_batch"]
-        )
+        with gpu_memory_manager():
+            try:
+                config = self.config["script_model"]
+                self.script_generator = self.YouTubeShortsScriptGenerator(
+                    input_dir=str(self.input_dir),
+                    output_dir=str(self.output_dir / "scripts"),
+                    model_path=config["model_path"],
+                    n_gpu_layers=config["n_gpu_layers"],
+                    n_ctx=config["n_ctx"],
+                    n_batch=config["n_batch"]
+                )
+            except Exception as e:
+                logging.error(f"Failed to initialize script generator: {e}")
+                raise
+    
+    def _unload_script_generator(self):
+        """Explicitly unload the script generator to free GPU memory."""
+        if self.script_generator is not None:
+            logging.info("Unloading script generator to free GPU memory")
+            
+            # Set to None to allow garbage collection
+            self.script_generator = None
+            
+            # Force garbage collection and clear CUDA cache
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+                logging.info(f"GPU memory after unloading: {torch.cuda.memory_allocated(0)/1e9:.2f}GB used, {torch.cuda.memory_reserved(0)/1e9:.2f}GB reserved")
     
     def _initialize_voice_preparation(self):
         """Initialize voice preparation utilities."""
         logging.info("Initializing voice preparation utilities...")
         
-        self.voice_preparation = self.VoicePreparation(
-            output_dir=str(self.output_dir / "voice_samples")
-        )
+        try:
+            self.voice_preparation = self.VoicePreparation(
+                output_dir=str(self.output_dir / "voice_samples")
+            )
+        except Exception as e:
+            logging.error(f"Failed to initialize voice preparation: {e}")
+            raise
     
     def create_script(self, topic: Optional[str] = None, style: str = "informative") -> Dict[str, Any]:
         """
@@ -137,6 +190,10 @@ class EnhancedYouTubeShortsCreator:
         logging.info(f"Generating {style} script for topic: {topic or 'from cleaned content'}")
         
         try:
+            # Initialize script generator if needed
+            self._initialize_script_generator()
+            
+            # Generate the script
             script_data = self.script_generator.generate_script(style=style)
             script_file = script_data["file_path"]
             
@@ -154,35 +211,40 @@ class EnhancedYouTubeShortsCreator:
             }
     
     def generate_narration_with_clone(self, 
-                                     script_file: str,
-                                     voice_sample: str,
-                                     voice_transcript: str,
-                                     output_dir: Optional[str] = None,
-                                     voice_settings: Optional[Dict[str, Any]] = None,
-                                     create_variants: bool = False,
-                                     preprocess: bool = False) -> Dict[str, Any]:
-        """
-        Generate audio narration using voice cloning technology.
-        
-        Args:
-            script_file: Path to script file
-            voice_sample: Path to voice sample WAV file
-            voice_transcript: Path to voice sample transcript file (or the transcript content)
-            output_dir: Directory to save output audio
-            voice_settings: Voice modification settings (pitch, speed, etc.)
-            create_variants: Whether to create voice variants
-            preprocess: Whether to preprocess the voice sample
-            
-        Returns:
-            Dictionary with narration result
-        """
+                                    script_file: str,
+                                    voice_sample: str,
+                                    voice_transcript: str,
+                                    output_dir: Optional[str] = None,
+                                    voice_settings: Optional[Dict[str, Any]] = None,
+                                    create_variants: bool = False,
+                                    preprocess: bool = False) -> Dict[str, Any]:
+        """Generate audio narration using voice cloning technology."""
         logging.info(f"Generating narration with voice cloning for script: {script_file}")
         
         try:
-            # Parse script to extract narration text
+            # IMPROVED PATH RESOLUTION - avoid path doubling
             script_path = Path(script_file)
+            if not script_path.is_absolute() and not "media_assets/scripts" in str(script_path):
+                script_path = self.output_dir / "scripts" / script_path.name
+            
+            voice_sample_path = Path(voice_sample)
+            if not voice_sample_path.is_absolute() and not "media_assets/voice_samples" in str(voice_sample_path):
+                voice_sample_path = self.output_dir / "voice_samples" / voice_sample_path.name
+            
+            # Handle voice transcript similarly
+            voice_transcript_path = Path(voice_transcript)
+            if not voice_transcript_path.is_absolute() and not "media_assets/voice_samples" in str(voice_transcript_path):
+                voice_transcript_path = self.output_dir / "voice_samples" / voice_transcript_path.name
+
+            logging.info(f"Resolved paths:")
+            logging.info(f"- Script: {script_path}")
+            logging.info(f"- Voice sample: {voice_sample_path}")
+            logging.info(f"- Voice transcript: {voice_transcript_path}")
+            
+            # Check if script file exists
             if not script_path.exists():
-                return {"success": False, "error": f"Script file not found: {script_file}"}
+                logging.error(f"Script file not found: {script_path}")
+                return {"success": False, "error": f"Script file not found: {script_path}"}
             
             # Create output directory
             if output_dir is None:
@@ -191,43 +253,75 @@ class EnhancedYouTubeShortsCreator:
             # Ensure output directory exists
             os.makedirs(output_dir, exist_ok=True)
             
-            # Extract narration text from script
-            with open(script_file, 'r') as f:
+            # Extract narration text from script - USING RESOLVED PATH
+            with open(script_path, 'r') as f:
                 script_content = f.read()
-                
-            # Parse script segments
-            hook_match = re.search(r'## HOOK.*?NARRATION: "([^"]+)"', script_content, re.DOTALL)
-            main_match = re.search(r'## MAIN CONTENT.*?NARRATION: "([^"]+)"', script_content, re.DOTALL)
-            conclusion_match = re.search(r'## CONCLUSION.*?NARRATION: "([^"]+)"', script_content, re.DOTALL)
             
+            # DEBUG: Print the beginning of script content to verify
+            logging.info(f"Script content preview: {script_content[:200]}...")            
+            
+            def extract_narration(content, section_name):
+                # Create pattern to match markdown-formatted headings
+                pattern = fr'## {section_name}\s+\*\*VISUAL:\*\*.*?\*\*NARRATION:\*\*\s*"([^"]+)"'
+                match = re.search(pattern, content, re.DOTALL)
+                if match:
+                    return match.group(1)
+                return None
+
+            # Extract narration from each section
+            hook_text = extract_narration(script_content, "HOOK")
+            main_text = extract_narration(script_content, "MAIN CONTENT")
+            conclusion_text = extract_narration(script_content, "CONCLUSION")
+
+            # Log what we found
+            if hook_text:
+                logging.info(f"Found hook text: {hook_text[:30]}...")
+            if main_text:
+                logging.info(f"Found main content text: {main_text[:30]}...")
+            if conclusion_text:
+                logging.info(f"Found conclusion text: {conclusion_text[:30]}...")
+
             # Combine into test text for voice cloning
             test_text = ""
-            if hook_match:
-                test_text += hook_match.group(1) + " "
-            if main_match:
-                test_text += main_match.group(1) + " "
-            if conclusion_match:
-                test_text += conclusion_match.group(1)
-            
+            if hook_text:
+                test_text += hook_text + " "
+            if main_text:
+                test_text += main_text + " "
+            if conclusion_text:
+                test_text += conclusion_text
+
             if not test_text:
+                # Debug more detailed script structure if no narration found
+                logging.error("No narration text found in script")
+                logging.info("Script sections:")
+                sections = script_content.split("##")
+                for i, section in enumerate(sections):
+                    if i > 0:  # Skip first split which is before any ##
+                        logging.info(f"Section {i}: {section[:100]}...")
                 return {"success": False, "error": "No narration text found in script"}
             
-            # Check if voice_transcript is a file path or actual transcript
+            # Check if voice_transcript_path exists (i.e., user passed a filename in voice_samples/)
             transcript_content = voice_transcript
-            if os.path.exists(voice_transcript):
-                with open(voice_transcript, 'r') as f:
+            if voice_transcript_path.exists():
+                with open(voice_transcript_path, 'r') as f:
                     transcript_content = f.read().strip()
-            
-            # Save transcript to temp file if it's not a file path
-            transcript_file = voice_transcript
-            if not os.path.exists(voice_transcript):
+                transcript_file = str(voice_transcript_path)
+            else:
+                # If it's not a file, assume it's raw text and save to temp file in output dir
                 transcript_file = os.path.join(output_dir, "temp_transcript.txt")
                 with open(transcript_file, 'w') as f:
                     f.write(transcript_content)
+
+            # IMPORTANT: Unload script generator to free GPU memory before voice cloning
+            self._unload_script_generator()
+            
+            # Wait for GPU memory to be released
+            with gpu_memory_manager():
+                logging.info("GPU memory cleared for voice cloning")
             
             # Prepare voice_clone.py command
-            cmd = ["python", "voice_clone.py", voice_sample, transcript_file, 
-                  "--output-dir", output_dir, "--test-text", test_text]
+            cmd = ["python", "voice_clone.py", str(voice_sample_path), transcript_file, 
+                "--output-dir", output_dir, "--test-text", test_text]
             
             # Add optional parameters
             if voice_settings:
@@ -251,10 +345,18 @@ class EnhancedYouTubeShortsCreator:
             if model_path:
                 cmd.extend(["--model-path", model_path])
             
+            # Set environment variable for PyTorch to avoid fragmentation
+            env = os.environ.copy()
+            env["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+            
             # Run voice_clone.py
             logging.info(f"Running voice cloning with command: {' '.join(cmd)}")
             try:
-                result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+                result = subprocess.run(cmd, 
+                                      capture_output=True, 
+                                      text=True, 
+                                      check=True,
+                                      env=env)
                 logging.info(f"Voice cloning process output: {result.stdout}")
                 if result.stderr:
                     logging.warning(f"Voice cloning process warnings: {result.stderr}")
@@ -302,7 +404,6 @@ class EnhancedYouTubeShortsCreator:
             return {}
             
         # For now, use the same file for all segments
-        # In a more sophisticated implementation, we could split the audio file into segments
         segment_mapping = {
             "hook": str(main_audio),
             "main_content": str(main_audio),
@@ -425,6 +526,9 @@ class EnhancedYouTubeShortsCreator:
             
             script_file = script_result["script_file"]
             
+            # IMPORTANT: Unload script generator to free memory for voice_clone
+            self._unload_script_generator()
+            
             # Step 2: Generate narration with voice cloning
             narration_result = self.generate_narration_with_clone(
                 script_file, 
@@ -452,6 +556,26 @@ class EnhancedYouTubeShortsCreator:
             results["error"] = str(e)
             return results
 
+
+    def _resolve_path(self, path_str: str, type_dir: str) -> Path:
+        """Helper to resolve a path relative to the expected directory structure.
+        
+        Args:
+            path_str: The path string from CLI argument
+            type_dir: The expected subdirectory ('scripts', 'voice_samples', etc.)
+            
+        Returns:
+            Path: The resolved path
+        """
+        path = Path(path_str)
+        if not path.is_absolute() and not (path.exists() and path.is_file()):
+            # Try resolving relative to expected directory
+            resolved_path = self.output_dir / type_dir / path_str
+            if resolved_path.exists():
+                return resolved_path
+                
+        # Either the path is absolute, or it's already a file, or we need to trust user input
+        return path
 
 def main():
     """Main function for command-line interface."""
@@ -536,8 +660,13 @@ def main():
             "expressiveness": args.expressiveness
         }
         result = creator.generate_narration_with_clone(
-            args.script, args.voice_sample, args.voice_transcript,
-            args.output_dir, voice_settings, args.create_variants, args.preprocess
+            args.script, 
+            args.voice_sample, 
+            args.voice_transcript,
+            args.output_dir, 
+            voice_settings, 
+            args.create_variants, 
+            args.preprocess
         )
     
     elif args.command == "short-clone":
