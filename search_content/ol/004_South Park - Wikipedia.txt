@@ -1744,6 +1744,14 @@ May 24, 2024
 2024-05-24
 )
 Paramount+
+27
+TBA
+July 9, 2025
+(
+2025-07-09
+)
+TBA
+Comedy Central
 Distribution
 International
 South Park
@@ -5849,6 +5857,13 @@ Metacritic
 South Park
 on
 Rotten Tomatoes
+South Park
+at
+Don Markstein's Toonopedia
+Johnny 2 Cozy,
+"Four Hours of South Park Lore To Fall Asleep To,"
+via YouTube.com, November 29, 2024.
+(Video compilation of literary criticism)
 Ryan Parker (September 14, 2016).
 "
 'South Park' History: Trey Parker, Matt Stone on Censors, Tom Cruise and Scientology's Role in Isaac Hayes Quitting"
@@ -5858,9 +5873,6 @@ The Hollywood Reporter
 February 21,
 2022
 .
-South Park
-at
-Don Markstein's Toonopedia
 v
 t
 e
@@ -5920,6 +5932,7 @@ Seasons
 24
 25
 26
+27
 Paramount+ specials
 "
 Post COVID
@@ -6625,7 +6638,7 @@ Israel
 Other
 IdRef
 Retrieved from "
-https://en.wikipedia.org/w/index.php?title=South_Park&oldid=1284335708
+https://en.wikipedia.org/w/index.php?title=South_Park&oldid=1285722941
 "
 Categories
 :
