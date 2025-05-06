@@ -1,0 +1,11 @@
+2025-05-05 18:52:37,959 - INFO - Initializing script generator...
+2025-05-05 18:52:38,411 - INFO - Initializing model: /home/horus/Projects/Models/gemma-3-finetune.Q8_0.gguf
+2025-05-05 18:53:05,672 - INFO - Model loaded successfully in 27.26 seconds
+2025-05-05 18:53:05,672 - INFO - Initializing voice preparation utilities...
+2025-05-05 18:53:05,672 - INFO - Generating entertaining script for topic: from cleaned content
+2025-05-05 18:53:05,672 - INFO - Generating entertaining script...
+2025-05-05 18:53:05,672 - INFO - Loading topic overview from CleanSC/topic_overview.md
+2025-05-05 18:53:05,673 - INFO - Loaded topic: southpark cartoon, cartman
+2025-05-05 18:56:56,097 - INFO - Script generated in 230.42 seconds
+2025-05-05 18:56:56,099 - INFO - Script saved to media_assets/scripts/southpark-cartoon-cartman-entertaining-20250505-185656.md
+2025-05-05 18:56:56,100 - INFO - Script generated successfully: South Park's Cartman: You Won't Believe This! 🤯
